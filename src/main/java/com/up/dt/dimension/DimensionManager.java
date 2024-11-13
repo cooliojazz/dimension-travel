@@ -1,17 +1,15 @@
-package com.up.dt;
+package com.up.dt.dimension;
 
+import com.up.dt.network.CoordinatePacket;
 import com.google.common.collect.ImmutableList;
+import com.up.dt.DimensionTravelMod;
 import java.util.ArrayList;
 import java.util.OptionalLong;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Holder;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.data.worldgen.SurfaceRuleData;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -35,26 +33,26 @@ import net.minecraft.world.level.levelgen.NoiseSettings;
 import net.minecraft.world.level.levelgen.PatrolSpawner;
 import net.minecraft.world.level.levelgen.PhantomSpawner;
 import net.minecraft.world.level.levelgen.WorldOptions;
-import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.storage.DerivedLevelData;
 import net.minecraft.world.level.storage.ServerLevelData;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import qouteall.q_misc_util.dimension.DimensionIntId;
 
 /**
  *
  * @author Ricky
  */
-@EventBusSubscriber(modid = DimensionTravel.MODID)
+@EventBusSubscriber(modid = DimensionTravelMod.MODID)
 public class DimensionManager {
     
-    private static final DimensionType DIMENSION_TYPE = 
-            new DimensionType(OptionalLong.empty(), true, false, false, true,
-                    1.0, true, false, -64, 384, 384, BlockTags.INFINIBURN_OVERWORLD,
-                    BuiltinDimensionTypes.OVERWORLD_EFFECTS, 0.0F,
-                    new DimensionType.MonsterSettings(false, true, UniformInt.of(0, 7), 0)); // Copied from vanilla overworld
+    private static final DimensionType DIMENSION_TYPE = new DimensionType(
+            OptionalLong.empty(), true, false, false, true, 1.0, true,
+            false, -64, 384, 384, BlockTags.INFINIBURN_OVERWORLD,
+            BuiltinDimensionTypes.OVERWORLD_EFFECTS, 0.0F,
+            new DimensionType.MonsterSettings(false, true, UniformInt.of(0, 7), 0)); // Copied from vanilla overworld
     private static final ArrayList<ResourceKey<Level>> dimensionKeys = new ArrayList<>();
     
     @SubscribeEvent
@@ -63,15 +61,20 @@ public class DimensionManager {
         Registry<DimensionType> dimRegistry = server.registries.compositeAccess().registryOrThrow(Registries.DIMENSION_TYPE);
         if (!event.getLevel().isClientSide()) {
             if (event.getLevel().dimensionType() == dimRegistry.get(BuiltinDimensionTypes.OVERWORLD)) {
-                getSave(server);
-                for (ResourceKey<Level> key : dimensionKeys) {
-//                    setupLevel(server, key);
-                    // TODO: Loading saves broken until dimensinokeys stores coordinates or they have a method to parse strings back into coords
+                DimensionsData save = DimensionsData.getSave(server);
+                dimensionKeys.clear();
+                for (String id : save.getIds()) {
+                    RealityCoordinate coord = RealityCoordinate.parse(id);
+                    setupLevel(server, coord, getKeyFor(coord));
                 }
             }
         } else {
             if (event.getLevel().dimensionType() == dimRegistry.get(BuiltinDimensionTypes.OVERWORLD)) {
-                getSave(server);
+                DimensionsData save = DimensionsData.getSave(server);
+                dimensionKeys.clear();
+                for (String id : save.getIds()) {
+                    dimensionKeys.add(getKeyFor(RealityCoordinate.parse(id)));
+                }
                 for (ResourceKey<Level> key : dimensionKeys) { // Needs to move to some sort of network packet for real multiplayer
                     Minecraft.getInstance().player.connection.levels().add(key);
                 }
@@ -79,96 +82,76 @@ public class DimensionManager {
         }
     }
 
-    public static ResourceKey<Level> createLevel(boolean client) {
-        RealityCoordinate coord = new RealityCoordinate(2);
+    public static ResourceKey<Level> createLevel(RealityCoordinate coord) {
         ResourceKey<Level> key = getKeyFor(coord);
-        if (client) {
-            Minecraft.getInstance().player.connection.levels().add(key);
-            return null;
-        } else {
-            MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
-            if (!server.levels.containsKey(key)) {
-                dimensionKeys.add(key);
-                setupLevel(server, coord);
-                getSave(server).setDirty();
-                DimensionIntId.onServerDimensionChanged(server);
-            }
-//            return server.levels.get(key);
-            return key;
+        MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+        if (!server.levels.containsKey(key)) {
+            setupLevel(server, coord, key);
+            DimensionsData save = DimensionsData.getSave(server);
+
+            save.setIds(dimensionKeys.stream().map(k -> k.location().getPath().toString().replaceAll("alter_(.+)", "$1")).toArray(String[]::new));
+            DimensionIntId.onServerDimensionChanged(server);
+
+            PacketDistributor.sendToAllPlayers(new CoordinatePacket(coord));
         }
+        return key;
     }
     
-    private static void setupLevel(MinecraftServer server, RealityCoordinate coordinates) {
-        ResourceKey<Level> dimensionKey = getKeyFor(coordinates);
+    public static void addClientLevel(RealityCoordinate coord) {
+        Minecraft.getInstance().player.connection.levels().add(getKeyFor(coord));
+    }
+    
+    private static void setupLevel(MinecraftServer server, RealityCoordinate coordinate, ResourceKey<Level> dimensionKey) {
         Registry<LevelStem> stemRegistry = server.registries.compositeAccess().registryOrThrow(Registries.LEVEL_STEM);
-//        Registry<DimensionType> dimRegistry = server.registries.compositeAccess().registryOrThrow(Registries.DIMENSION_TYPE);
         ServerLevelData serverleveldata = server.getWorldData().overworldData();
         WorldOptions worldoptions = server.getWorldData().worldGenOptions();
 
         ServerLevel level = new ServerLevel(
                 server, server.executor, server.storageSource,
-                new DerivedLevelData(server.getWorldData(), serverleveldata), dimensionKey, createOverworldStem(server, stemRegistry, coordinates),
+                new DerivedLevelData(server.getWorldData(), serverleveldata), dimensionKey, createOverworldStem(server, stemRegistry, coordinate),
                 server.progressListenerFactory.create(1), server.getWorldData().isDebugWorld(), BiomeManager.obfuscateSeed(worldoptions.seed()),
                 ImmutableList.of(new PhantomSpawner(), new PatrolSpawner(), new CatSpawner(), new VillageSiege(), new WanderingTraderSpawner(serverleveldata)),
                 false, null
             );
-//            worldborder.addListener(new BorderChangeListener.DelegateBorderChangeListener(level.getWorldBorder()));
+//        worldborder.addListener(new BorderChangeListener.DelegateBorderChangeListener(level.getWorldBorder()));
         server.levels.put(dimensionKey, level);
         server.markWorldsDirty();
 
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.level.LevelEvent.Load(server.getLevel(dimensionKey)));
+        
+        dimensionKeys.add(dimensionKey);
     }
     
-    private static ResourceKey<Level> getKeyFor(RealityCoordinate coordinates) {
-        return ResourceKey.create(Registries.DIMENSION, ResourceLocation.fromNamespaceAndPath(DimensionTravel.MODID, "gen_dim_" + coordinates));
+    private static ResourceKey<Level> getKeyFor(RealityCoordinate coordinate) {
+        return ResourceKey.create(Registries.DIMENSION, getLocationFor(coordinate));
+    }
+    
+    private static ResourceLocation getLocationFor(RealityCoordinate coordinates) {
+        return ResourceLocation.fromNamespaceAndPath(DimensionTravelMod.MODID, "alter_" + coordinates);
     }
     
     private static LevelStem createOverworldStem(MinecraftServer server, Registry<LevelStem> stemRegistry, RealityCoordinate coord) {
-//        return new LevelStem(Holder.direct(DIMENSION_TYPE), stemRegistry.get(LevelStem.OVERWORLD).generator());
         NoiseGeneratorSettings settings = overworld(server, false, false, coord);
         return new LevelStem(Holder.direct(DIMENSION_TYPE), new NoiseBasedChunkGenerator(stemRegistry.get(LevelStem.OVERWORLD).generator().getBiomeSource(), Holder.direct(settings)));
     }
     
-    private RealityCoordinate home = new RealityCoordinate((short)0, (short)224);
+    private static final RealityCoordinate home = new RealityCoordinate((short)0, (short)224, (short)127, (short)255, (short)0);
     
     public static NoiseGeneratorSettings overworld(MinecraftServer server, boolean large, boolean amplified, RealityCoordinate coord) {
-        int min = (coord.get(0) / 16 - 4) * 16;
+        int min = (coord.get(0) / 32 - 4) * 16;
         return new NoiseGeneratorSettings(
-//            NoiseSettings.create(min, min + coord.get(1) / 8 * 16, 1, 2),
-            NoiseSettings.create(-64, 384, 1, 2), // Well, it was workking with just one static coord, but now its not working with even none?
+            NoiseSettings.create(min, (coord.get(1) / 8 + 1) * 16, 1 + (int)Math.round(coord.get(3) / 255d), 1 + (int)Math.round(coord.get(4) / 255d)),
             Blocks.STONE.defaultBlockState(),
             Blocks.WATER.defaultBlockState(),
             NoiseRouterData.overworld(server.registries.compositeAccess().lookupOrThrow(Registries.DENSITY_FUNCTION), server.registries.compositeAccess().lookupOrThrow(Registries.NOISE), amplified, large),
             SurfaceRuleData.overworld(),
             new OverworldBiomeBuilder().spawnTarget(),
-            63,
+            coord.get(2) / 2,
             false,
             true,
             true,
             false
         );
-    }
-    
-    public static SavedData getSave(MinecraftServer server) {
-        return server.getLevel(Level.OVERWORLD).getDataStorage().computeIfAbsent(new SavedData.Factory<>(DimensionManager::create, DimensionManager::load), "alternateDimensions");
-    }
-    
-    public static SavedData create() {
-      return new SavedData() {
-          @Override
-          public CompoundTag save(CompoundTag tag, HolderLookup.Provider registries) {
-              tag.putString("ids", dimensionKeys.stream().map(k -> k.location().toString()).collect(Collectors.joining(";")));
-              return tag;
-          }
-      };
-    }
-
-    public static SavedData load(CompoundTag tag, HolderLookup.Provider lookupProvider) {
-        SavedData data = create();
-        String ids = tag.getString("ids");
-        dimensionKeys.clear();
-        if (ids != null) Stream.of(ids.split(";")).forEach(s -> dimensionKeys.add(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(s))));
-        return data;
     }
 
 }
