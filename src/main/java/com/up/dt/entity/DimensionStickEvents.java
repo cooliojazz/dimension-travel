@@ -1,10 +1,14 @@
-package com.up.dt;
+package com.up.dt.entity;
 
+import com.up.dt.DimensionTravelMod;
 import com.up.dt.dimension.DimensionManager;
 import com.up.dt.dimension.RealityCoordinate;
+import com.up.dt.dimension.RealityDirection;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
@@ -45,7 +49,8 @@ public class DimensionStickEvents {
         if (event.getItemStack().is(DimensionTravelMod.DIMENSION_STICK) && !event.getLevel().isClientSide) {
 //        RealityCoordinate coord = new RealityCoordinate((short)200, (short)100, (short)200, (short)250, (short)50);
 //        RealityCoordinate coord = new RealityCoordinate((short)1, (short)2, (short)4, (short)8, (short)16);
-            ResourceKey<Level> key = DimensionManager.createLevel(RealityCoordinate.random(5));
+            ResourceKey<Level> key = DimensionManager.createLevel(RealityCoordinate.random(6));
+//            ResourceKey<Level> key = DimensionManager.createLevel(DimensionManager.realities.get((ServerLevel)event.getLevel()).clone().offset(RealityDirection.H_SCALE, (short)(64 * (event.getHand() == InteractionHand.MAIN_HAND ? 1 : -1))));
             Portal in = makeAligned(event.getLevel(), event.getPos(), event.getFace(), key);
 
             Portal out = PortalAPI.createReversePortal(in);

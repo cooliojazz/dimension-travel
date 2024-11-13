@@ -1,4 +1,4 @@
-package com.up.dt;
+package com.up.dt.entity;
 
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;

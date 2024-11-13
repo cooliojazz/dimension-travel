@@ -4,6 +4,7 @@ import com.up.dt.network.CoordinatePacket;
 import com.google.common.collect.ImmutableList;
 import com.up.dt.DimensionTravelMod;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.OptionalLong;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Holder;
@@ -23,6 +24,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.OverworldBiomeBuilder;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
@@ -53,7 +55,11 @@ public class DimensionManager {
             false, -64, 384, 384, BlockTags.INFINIBURN_OVERWORLD,
             BuiltinDimensionTypes.OVERWORLD_EFFECTS, 0.0F,
             new DimensionType.MonsterSettings(false, true, UniformInt.of(0, 7), 0)); // Copied from vanilla overworld
+    
     private static final ArrayList<ResourceKey<Level>> dimensionKeys = new ArrayList<>();
+    public static final HashMap<ServerLevel, RealityCoordinate> realities = new HashMap<>();
+    
+    private static final RealityCoordinate HOME_COORDINATE = new RealityCoordinate((short)0, (short)224, (short)127, (short)64, (short)0, (short)75); //Convert to .withs
     
     @SubscribeEvent
     public static void onWorldLoad(LevelEvent.Load event) {
@@ -61,6 +67,7 @@ public class DimensionManager {
         Registry<DimensionType> dimRegistry = server.registries.compositeAccess().registryOrThrow(Registries.DIMENSION_TYPE);
         if (!event.getLevel().isClientSide()) {
             if (event.getLevel().dimensionType() == dimRegistry.get(BuiltinDimensionTypes.OVERWORLD)) {
+                realities.put((ServerLevel)event.getLevel(), HOME_COORDINATE);
                 DimensionsData save = DimensionsData.getSave(server);
                 dimensionKeys.clear();
                 for (String id : save.getIds()) {
@@ -88,11 +95,11 @@ public class DimensionManager {
         if (!server.levels.containsKey(key)) {
             setupLevel(server, coord, key);
             DimensionsData save = DimensionsData.getSave(server);
-
             save.setIds(dimensionKeys.stream().map(k -> k.location().getPath().toString().replaceAll("alter_(.+)", "$1")).toArray(String[]::new));
+            
+            PacketDistributor.sendToAllPlayers(new CoordinatePacket(coord));
             DimensionIntId.onServerDimensionChanged(server);
 
-            PacketDistributor.sendToAllPlayers(new CoordinatePacket(coord));
         }
         return key;
     }
@@ -120,6 +127,7 @@ public class DimensionManager {
         net.neoforged.neoforge.common.NeoForge.EVENT_BUS.post(new net.neoforged.neoforge.event.level.LevelEvent.Load(server.getLevel(dimensionKey)));
         
         dimensionKeys.add(dimensionKey);
+        realities.put(level, coordinate);
     }
     
     private static ResourceKey<Level> getKeyFor(RealityCoordinate coordinate) {
@@ -135,18 +143,18 @@ public class DimensionManager {
         return new LevelStem(Holder.direct(DIMENSION_TYPE), new NoiseBasedChunkGenerator(stemRegistry.get(LevelStem.OVERWORLD).generator().getBiomeSource(), Holder.direct(settings)));
     }
     
-    private static final RealityCoordinate home = new RealityCoordinate((short)0, (short)224, (short)127, (short)255, (short)0);
+    private static final BlockState[] stones = new BlockState[] {Blocks.SMOOTH_STONE.defaultBlockState(), Blocks.STONE.defaultBlockState(), Blocks.ANDESITE.defaultBlockState(), Blocks.GRAVEL.defaultBlockState(), Blocks.CLAY.defaultBlockState()};
     
     public static NoiseGeneratorSettings overworld(MinecraftServer server, boolean large, boolean amplified, RealityCoordinate coord) {
-        int min = (coord.get(0) / 32 - 4) * 16;
+        int min = (coord.get(RealityDirection.MIN_Y.ordinal()) / 32 - 4) * 16;
         return new NoiseGeneratorSettings(
-            NoiseSettings.create(min, (coord.get(1) / 8 + 1) * 16, 1 + (int)Math.round(coord.get(3) / 255d), 1 + (int)Math.round(coord.get(4) / 255d)),
-            Blocks.STONE.defaultBlockState(),
+            NoiseSettings.create(min, (coord.get(RealityDirection.HEIGHT.ordinal()) / 8 + 1) * 16, 1 + (int)Math.round(RealityDirection.H_SCALE.ordinal() / 255d * 4), 1 + (int)Math.round(RealityDirection.V_SCALE.ordinal() / 255d * 4)),
+            stones[(int)Math.floor(coord.get(RealityDirection.STONE_TYPE.ordinal()) / 255d * stones.length)],
             Blocks.WATER.defaultBlockState(),
             NoiseRouterData.overworld(server.registries.compositeAccess().lookupOrThrow(Registries.DENSITY_FUNCTION), server.registries.compositeAccess().lookupOrThrow(Registries.NOISE), amplified, large),
             SurfaceRuleData.overworld(),
             new OverworldBiomeBuilder().spawnTarget(),
-            coord.get(2) / 2,
+            coord.get(RealityDirection.OCEAN_LEVEL.ordinal()) / 2,
             false,
             true,
             true,

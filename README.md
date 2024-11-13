@@ -24,3 +24,7 @@ TODO
   - Add backing entity to cover rear portal and add a small outlline to the front
     - Possibly make this somehow optional for aethetics of seamless portals?
   - Cool opening animations?
+- Coordinates don't reflect attractor model (components are reduced in spatial size on usage, while worlds are indexed by their raw values, leading to mutiple identical worlds with differeing coordinates)
+- maybe change realitycoorinate external api to use ints and only use shorts for internal array storage?
+- Or should reality coordinates be dynamically sized per-parameter to more easily allow coordinate copmarison in the case two points above
+  - To note though, this would remove the "smoothness" that the current system gives to subdivided components when transition between very few possible states
