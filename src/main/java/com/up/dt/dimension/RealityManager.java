@@ -48,7 +48,7 @@ import qouteall.q_misc_util.dimension.DimensionIntId;
  * @author Ricky
  */
 @EventBusSubscriber(modid = DimensionTravelMod.MODID)
-public class DimensionManager {
+public class RealityManager {
     
     private static final DimensionType DIMENSION_TYPE = new DimensionType(
             OptionalLong.empty(), true, false, false, true, 1.0, true,
@@ -57,7 +57,7 @@ public class DimensionManager {
             new DimensionType.MonsterSettings(false, true, UniformInt.of(0, 7), 0)); // Copied from vanilla overworld
     
     private static final ArrayList<ResourceKey<Level>> dimensionKeys = new ArrayList<>();
-    public static final HashMap<ServerLevel, RealityCoordinate> realities = new HashMap<>();
+    public static final HashMap<Level, RealityCoordinate> realities = new HashMap<>();
     
     private static final RealityCoordinate HOME_COORDINATE = new RealityCoordinate((short)0, (short)224, (short)127, (short)64, (short)0, (short)75); //Convert to .withs
     
@@ -151,7 +151,7 @@ public class DimensionManager {
             NoiseSettings.create(min, (coord.get(RealityDirection.HEIGHT.ordinal()) / 8 + 1) * 16, 1 + (int)Math.round(RealityDirection.H_SCALE.ordinal() / 255d * 4), 1 + (int)Math.round(RealityDirection.V_SCALE.ordinal() / 255d * 4)),
             stones[(int)Math.floor(coord.get(RealityDirection.STONE_TYPE.ordinal()) / 255d * stones.length)],
             Blocks.WATER.defaultBlockState(),
-            NoiseRouterData.overworld(server.registries.compositeAccess().lookupOrThrow(Registries.DENSITY_FUNCTION), server.registries.compositeAccess().lookupOrThrow(Registries.NOISE), amplified, large),
+            CustomNoiseRouterData.overworld(server.registries.compositeAccess().lookupOrThrow(Registries.DENSITY_FUNCTION), server.registries.compositeAccess().lookupOrThrow(Registries.NOISE), amplified, large),
             SurfaceRuleData.overworld(),
             new OverworldBiomeBuilder().spawnTarget(),
             coord.get(RealityDirection.OCEAN_LEVEL.ordinal()) / 2,

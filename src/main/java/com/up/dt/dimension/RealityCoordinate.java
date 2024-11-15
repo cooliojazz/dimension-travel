@@ -1,8 +1,13 @@
 package com.up.dt.dimension;
 
+import com.mojang.datafixers.util.Pair;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
+import com.mojang.serialization.DynamicOps;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import java.util.Arrays;
 
 /**
  * Should this be called RealityVector? I really like that name instead for it's mathematical accuracy, but RealityCoordinate I think more clearly communicates what it is colloquially.
@@ -10,7 +15,18 @@ import net.minecraft.network.codec.StreamCodec;
  */
 public class RealityCoordinate {
     
+    // TODO: This really needs to become immutable now for the codec stuff
+    
     public static final StreamCodec<ByteBuf, RealityCoordinate> STREAM_CODEC = StreamCodec.composite(ByteBufCodecs.STRING_UTF8, RealityCoordinate::toString, RealityCoordinate::parse);
+    public static final Codec<RealityCoordinate> CODEC = Codec.STRING.comapFlatMap(
+            s -> { 
+                try {
+                    return DataResult.success(RealityCoordinate.parse(s));
+                } catch (Exception e) {
+                    return DataResult.error(() -> s + " is not a reality coordinate.");
+                }
+            },
+            RealityCoordinate::toString);
     
 //    private static final String chars = "0123456789abcdefghijklmnopqrstuv"; // Simpler for testing
 //    private static final String chars = "bcdfghjlmnopqrstuvwxyz0123456789";
@@ -19,7 +35,6 @@ public class RealityCoordinate {
     private static final int PACK_SIZE = 5;
     
     private final short[] vector;
-    public static String log = "";
 
     public RealityCoordinate(short... vector) {
         this.vector = vector;
@@ -61,8 +76,9 @@ public class RealityCoordinate {
     }
     
     public static RealityCoordinate parse(String coord) {
-        log += "Parsing " + coord + "\n";
-        short[] vector = new short[chars.indexOf(coord.charAt(0)) * 32 + chars.indexOf(coord.charAt(1))];
+        int length = chars.indexOf(coord.charAt(0)) * 32 + chars.indexOf(coord.charAt(1));
+        if (length != RealityDirection.size()) throw new IndexOutOfBoundsException("Reality coordinate does not match number of reality directions");
+        short[] vector = new short[length];
         for (int i = 0; i < vector.length / (double)PACK_SIZE; i++) {
             long merged = 0;
             for (int j = 0; j < COORD_SIZE; j++) {
@@ -72,7 +88,6 @@ public class RealityCoordinate {
                 if (i * PACK_SIZE + j < vector.length) vector[i * PACK_SIZE + j] = (short)((merged >> (PACK_SIZE - 1 - j) * COORD_SIZE) & 0xFF);
             }
         }
-        log += "Read as " + new RealityCoordinate(vector) + "\n\n";
         return new RealityCoordinate(vector);
     }
     
@@ -83,5 +98,15 @@ public class RealityCoordinate {
         }
         return new RealityCoordinate(vector);
     }
-    
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof RealityCoordinate)) return false;
+        return Arrays.equals(vector, ((RealityCoordinate)obj).vector);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(vector);
+    }
 }
