@@ -34,7 +34,7 @@ public class DimensionStickItem extends Item {
     
     public RealityCoordinate nextCoord(Level level, InteractionHand hand) {
         return RealityCoordinate.random(RealityDirection.size());
-//        return RealityCoordinate coord = RealityManager.realities.get(level).clone().offset(RealityDirection.STONE_TYPE, (short)1);
+//        return RealityManager.realities.get(level).clone().offset(RealityDirection.BIOME_SCALE, (short)1);
 //        return ResourceKey<Level> key = DimensionManager.createLevel(DimensionManager.realities.get(level).clone().offset(RealityDirection.H_SCALE, (short)(64 * (event.getHand() == InteractionHand.MAIN_HAND ? 1 : -1))));
     }
 

@@ -44,7 +44,11 @@ public class RealityCoordinate {
         return vector[i];
     }
     
-    // Probably should make these return new inst4ead of mutate?
+    public short get(RealityDirection dir) {
+        return vector[dir.ordinal()];
+    }
+    
+    // TODO: Make these return new instead of mutate
     public RealityCoordinate with(RealityDirection dir, short value) {
         vector[dir.ordinal()] = (short)(value & 0xFF);
         return this;

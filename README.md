@@ -39,3 +39,11 @@ TODO
   - Some sort of bad thing that could happen there? like an entity, or a badd effect?
   - Or should it just be a super liminal space?
   - Should probaby just be all black, unsure if too boring though even if it ends up being liminal
+
+
+Name Ideas
+===
+Pathfinding Through Reality
+Reality Pathfinders
+Exploring Reality
+Reality Perusers
