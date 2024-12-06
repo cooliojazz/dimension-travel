@@ -10,15 +10,15 @@ import net.minecraft.world.level.saveddata.SavedData;
  *
  * @author Ricky
  */
-public class DimensionsData extends SavedData {
+public class RealityData extends SavedData {
     
     private String[] ids;
 
-    public DimensionsData() {
+    public RealityData() {
         this(new String[0]);
     }
 
-    public DimensionsData(String[] ids) {
+    public RealityData(String[] ids) {
         this.ids = ids;
     }
 
@@ -38,8 +38,8 @@ public class DimensionsData extends SavedData {
         return tag;
     }
 
-    public static DimensionsData load(CompoundTag tag, HolderLookup.Provider lookupProvider) {
-        DimensionsData data = new DimensionsData();
+    public static RealityData load(CompoundTag tag, HolderLookup.Provider lookupProvider) {
+        RealityData data = new RealityData();
         String merged = tag.getString("ids");
 //        dimensionKeys.clear();
 //        if (ids != null) Stream.of(ids.split(";")).forEach(s -> dimensionKeys.add(ResourceKey.create(Registries.DIMENSION, ResourceLocation.parse(s))));
@@ -47,8 +47,8 @@ public class DimensionsData extends SavedData {
         return data;
     }
     
-    public static DimensionsData getSave(MinecraftServer server) {
-        return server.getLevel(Level.OVERWORLD).getDataStorage().computeIfAbsent(new SavedData.Factory<>(DimensionsData::new, DimensionsData::load), "alternateDimensions");
+    public static RealityData getSave(MinecraftServer server) {
+        return server.getLevel(Level.OVERWORLD).getDataStorage().computeIfAbsent(new SavedData.Factory<>(RealityData::new, RealityData::load), "alternateDimensions");
     }
     
 }

@@ -32,8 +32,13 @@ public class CustomNoiseRouterData extends NoiseRouterData {
      * @param scale Varies between 0 and 64
      */
     protected static DensityFunction slideOverworld(int scale, DensityFunction densityFunction) {
+        scale = 64 - scale;
         return slide(densityFunction, -64, 384, 16 + scale, scale, -0.078125, 0, 24, 0.1171875 + scale / 226.29834254143646408839779005525);
     }
+
+//    private static DensityFunction slideOverworld(boolean amplified, DensityFunction densityFunction) {
+//        return slide(densityFunction, -64, 384, amplified ? 16 : 80, amplified ? 0 : 64, (double)-0.078125F, 0, 24, amplified ? 0.4 : (double)0.1171875F);
+//    }
     
     public static NoiseRouter overworld(HolderGetter<DensityFunction> densityFunctions, HolderGetter<NormalNoise.NoiseParameters> noiseParameters, boolean large, int amplified, double biomeScale) {
         
@@ -54,6 +59,7 @@ public class CustomNoiseRouterData extends NoiseRouterData {
         DensityFunction cheese = getFunction(densityFunctions, large ? SLOPED_CHEESE_LARGE : (amplified > 0 ? SLOPED_CHEESE_AMPLIFIED : SLOPED_CHEESE));
         DensityFunction spaghetti = DensityFunctions.min(cheese, DensityFunctions.mul(DensityFunctions.constant(5.0), getFunction(densityFunctions, ENTRANCES)));
         DensityFunction overworld = DensityFunctions.rangeChoice(cheese, -1000000.0, 1.5625, spaghetti, underground(densityFunctions, noiseParameters, cheese));
+//        DensityFunction finalDensity = DensityFunctions.min(postProcess(slideOverworld(amplified, overworld)), getFunction(densityFunctions, NOODLE));
         DensityFunction finalDensity = DensityFunctions.min(postProcess(slideOverworld(amplified, overworld)), getFunction(densityFunctions, NOODLE));
         DensityFunction y = getFunction(densityFunctions, Y);
         int minY = Stream.of(OreVeinifier.VeinType.values()).mapToInt(t -> t.minY).min().orElse(-DimensionType.MIN_Y * 2);

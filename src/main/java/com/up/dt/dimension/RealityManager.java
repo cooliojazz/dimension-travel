@@ -1,13 +1,13 @@
 package com.up.dt.dimension;
 
+import com.up.dt.dimension.math.AttractedRealityVector;
+import com.up.dt.dimension.math.RealityDirection;
+import com.up.dt.dimension.math.RealityVector;
 import com.up.dt.network.NewRealityPacket;
 import com.google.common.collect.ImmutableList;
 import com.up.dt.DimensionTravelMod;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.OptionalLong;
-import java.util.function.Supplier;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
@@ -17,10 +17,7 @@ import net.minecraft.data.worldgen.SurfaceRuleData;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.RegistryLayer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.entity.ai.village.VillageSiege;
 import net.minecraft.world.entity.npc.CatSpawner;
 import net.minecraft.world.entity.npc.WanderingTraderSpawner;
@@ -33,7 +30,6 @@ import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
-import net.minecraft.world.level.levelgen.NoiseRouterData;
 import net.minecraft.world.level.levelgen.NoiseSettings;
 import net.minecraft.world.level.levelgen.PatrolSpawner;
 import net.minecraft.world.level.levelgen.PhantomSpawner;
@@ -49,7 +45,7 @@ import net.neoforged.neoforge.network.PacketDistributor;
 import qouteall.q_misc_util.dimension.DimensionIntId;
 
 /**
- *
+ * Should probably consider using Immersive Portals DimLib to replace most of the level related code with something presumably more stable
  * @author Ricky
  */
 @EventBusSubscriber(modid = DimensionTravelMod.MODID)
@@ -58,13 +54,13 @@ public class RealityManager {
     public static final ResourceKey<DimensionType> DIMENSION_TYPE_KEY = ResourceKey.create(Registries.DIMENSION_TYPE, ResourceLocation.fromNamespaceAndPath(DimensionTravelMod.MODID, "alter-overworld"));
     
     private static final ArrayList<ResourceKey<Level>> dimensionKeys = new ArrayList<>();
-    public static final HashMap<Level, RealityCoordinate> realities = new HashMap<>();
-    private static RealityCoordinate current = null;
+    public static final HashMap<Level, AttractedRealityVector> realities = new HashMap<>();
+    private static AttractedRealityVector current = null;
     
-    private static final RealityCoordinate HOME_COORDINATE = new RealityCoordinate((short)0, (short)224, (short)127, (short)64, (short)0, (short)75, (short)63, (short)63); //Convert to .withs
+    private static final AttractedRealityVector HOME_COORDINATE = new RealityVector(0, 224, 127, 64, 0, 75, 63, 63).attract(); //Convert to .withs
     
     @OnlyIn(Dist.CLIENT)
-    public static RealityCoordinate currentReality() {
+    public static AttractedRealityVector currentReality() {
         return current;
     }
     
@@ -75,19 +71,19 @@ public class RealityManager {
         if (!event.getLevel().isClientSide()) {
             if (event.getLevel().dimensionType() == dimRegistry.get(BuiltinDimensionTypes.OVERWORLD)) {
                 realities.put((ServerLevel)event.getLevel(), HOME_COORDINATE);
-                DimensionsData save = DimensionsData.getSave(server);
+                RealityData save = RealityData.getSave(server);
                 dimensionKeys.clear();
                 for (String id : save.getIds()) {
-                    RealityCoordinate coord = RealityCoordinate.parse(id);
+                    AttractedRealityVector coord = AttractedRealityVector.parse(id);
                     setupLevel(server, coord, RealityResourceUtil.createLevelKeyFor(coord));
                 }
             }
         } else {
             if (event.getLevel().dimensionType() == dimRegistry.get(BuiltinDimensionTypes.OVERWORLD)) {
-                DimensionsData save = DimensionsData.getSave(server);
+                RealityData save = RealityData.getSave(server);
                 dimensionKeys.clear();
                 for (String id : save.getIds()) {
-                    dimensionKeys.add(RealityResourceUtil.createLevelKeyFor(RealityCoordinate.parse(id)));
+                    dimensionKeys.add(RealityResourceUtil.createLevelKeyFor(AttractedRealityVector.parse(id)));
                 }
                 for (ResourceKey<Level> key : dimensionKeys) { // Needs to move to some sort of network packet for real multiplayer
                     Minecraft.getInstance().player.connection.levels().add(key);
@@ -96,12 +92,12 @@ public class RealityManager {
         }
     }
 
-    public static ResourceKey<Level> createLevel(RealityCoordinate coord) {
+    public static ResourceKey<Level> createLevel(AttractedRealityVector coord) {
         ResourceKey<Level> key = RealityResourceUtil.createLevelKeyFor(coord);
         MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
         if (!server.levels.containsKey(key)) {
             setupLevel(server, coord, key);
-            DimensionsData save = DimensionsData.getSave(server);
+            RealityData save = RealityData.getSave(server);
             save.setIds(dimensionKeys.stream().map(k -> k.location().getPath().toString().replaceAll("alter_(.+)", "$1")).toArray(String[]::new));
             
             PacketDistributor.sendToAllPlayers(new NewRealityPacket(coord));
@@ -111,15 +107,15 @@ public class RealityManager {
         return key;
     }
     
-    public static void setCurrentReality(RealityCoordinate coord) {
+    public static void setCurrentReality(AttractedRealityVector coord) {
         current = coord;
     }
     
-    public static void addClientLevel(RealityCoordinate coord) {
+    public static void addClientLevel(AttractedRealityVector coord) {
         Minecraft.getInstance().player.connection.levels().add(RealityResourceUtil.createLevelKeyFor(coord));
     }
     
-    private static void setupLevel(MinecraftServer server, RealityCoordinate coordinate, ResourceKey<Level> dimensionKey) {
+    private static void setupLevel(MinecraftServer server, AttractedRealityVector coordinate, ResourceKey<Level> dimensionKey) {
         ServerLevelData serverleveldata = server.getWorldData().overworldData();
         WorldOptions worldoptions = server.getWorldData().worldGenOptions();
 
@@ -142,7 +138,7 @@ public class RealityManager {
 //        DimensionIntId.onServerDimensionChanged(server);
     }
     
-    public static LevelStem createOverworldStem(RegistryAccess.Frozen registries, RealityCoordinate coord) {
+    public static LevelStem createOverworldStem(RegistryAccess.Frozen registries, AttractedRealityVector coord) {
         NoiseGeneratorSettings settings = overworld(registries, false, false, coord);
         NoiseBasedChunkGenerator gen = new NoiseBasedChunkGenerator(
                 MultiNoiseBiomeSource.createFromPreset(registries.registryOrThrow(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST).getHolderOrThrow(MultiNoiseBiomeSourceParameterLists.OVERWORLD)),
@@ -153,16 +149,16 @@ public class RealityManager {
     private static final BlockState[] stones = new BlockState[] {Blocks.SMOOTH_STONE.defaultBlockState(), Blocks.STONE.defaultBlockState(), Blocks.ANDESITE.defaultBlockState(), Blocks.GRAVEL.defaultBlockState(), Blocks.CLAY.defaultBlockState()};
     private static final BlockState[] liquids = new BlockState[] {Blocks.WATER.defaultBlockState(), Blocks.LAVA.defaultBlockState()};
     
-    public static NoiseGeneratorSettings overworld(RegistryAccess.Frozen registries, boolean large, boolean amplified, RealityCoordinate coord) {
+    public static NoiseGeneratorSettings overworld(RegistryAccess.Frozen registries, boolean large, boolean amplified, AttractedRealityVector coord) {
         int min = (coord.get(RealityDirection.MIN_Y) / 32 - 4) * 16;
         return new NoiseGeneratorSettings(
-            NoiseSettings.create(min, (coord.get(RealityDirection.HEIGHT) / 8 + 1) * 16, 1 + (int)Math.round(coord.get(RealityDirection.H_SCALE) / 255d * 4), 1 + (int)Math.round(coord.get(RealityDirection.V_SCALE) / 255d * 4)),
+            NoiseSettings.create(min, (coord.get(RealityDirection.HEIGHT) / 8 + 1) * 16, 1 + (int)Math.round(coord.get(RealityDirection.H_SCALE) / 255d * 1), 1 + (int)Math.round(coord.get(RealityDirection.V_SCALE) / 255d * 1)),
             stones[(int)Math.floor(coord.get(RealityDirection.STONE_TYPE) / 255d * stones.length)],
             liquids[(int)Math.floor(coord.get(RealityDirection.OCEAN_TYPE) / 255d * liquids.length)],
-            CustomNoiseRouterData.overworld(registries.lookupOrThrow(Registries.DENSITY_FUNCTION), registries.lookupOrThrow(Registries.NOISE), amplified, large ? 64 : 0, coord.get(RealityDirection.BIOME_SCALE) / 255.0),
+            CustomNoiseRouterData.overworld(registries.lookupOrThrow(Registries.DENSITY_FUNCTION), registries.lookupOrThrow(Registries.NOISE), large, amplified ? 64 : 0, 0.5 + coord.get(RealityDirection.BIOME_SCALE) / 255.0 / 2),
             SurfaceRuleData.overworld(),
             new OverworldBiomeBuilder().spawnTarget(),
-            coord.get(RealityDirection.OCEAN_LEVEL) / 2,
+            coord.get(RealityDirection.OCEAN_LEVEL) / 4,
             false, true, true, false);
     }
 

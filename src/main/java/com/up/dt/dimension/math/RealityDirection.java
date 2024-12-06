@@ -1,4 +1,4 @@
-package com.up.dt.dimension;
+package com.up.dt.dimension.math;
 
 /**
  *

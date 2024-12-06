@@ -1,17 +1,11 @@
 package com.up.dt;
 
+import com.up.dt.dimension.math.AttractedRealityVector;
 import com.up.dt.dimension.RealityManager;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.tags.BlockTags;
-import net.minecraft.util.valueproviders.UniformInt;
-import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
-import net.neoforged.neoforge.registries.RegisterEvent;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
-import com.up.dt.dimension.RealityCoordinate;
 import com.up.dt.entity.FancyPortal;
 import com.up.dt.entity.PortalParticle;
 import com.up.dt.item.CoordinatePaperItem;
@@ -28,14 +22,12 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.level.dimension.DimensionType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterParticleProvidersEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
@@ -43,8 +35,6 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import net.neoforged.neoforge.registries.DeferredHolder;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
-
-import java.util.OptionalLong;
 
 @Mod(DimensionTravelMod.MODID)
 @EventBusSubscriber(bus = EventBusSubscriber.Bus.MOD, modid = DimensionTravelMod.MODID)
@@ -72,7 +62,7 @@ public class DimensionTravelMod {
     
     public static final DeferredHolder<ParticleType<?>, ParticleType<DustParticleOptions>> PORTAL_PARTICLE = DimensionTravelMod.PARTICLE_TYPES.register("reality-portal", PortalParticle.dustTypeSupplier);
     
-    public static final DeferredHolder<DataComponentType<?>, DataComponentType<RealityCoordinate>> REALITY_COORDINATE = DATA_COMPONENTS.registerComponentType("reality-coordinate", builder -> builder.persistent(RealityCoordinate.CODEC).networkSynchronized(RealityCoordinate.STREAM_CODEC));
+    public static final DeferredHolder<DataComponentType<?>, DataComponentType<AttractedRealityVector>> REALITY_VECTOR = DATA_COMPONENTS.registerComponentType("reality-vector", builder -> builder.persistent(AttractedRealityVector.CODEC).networkSynchronized(AttractedRealityVector.STREAM_CODEC));
 
     public DimensionTravelMod(IEventBus modEventBus, ModContainer modContainer) {
         ENTITY_TYPE.register("fancy-portal", () -> FancyPortal.ENTITY_TYPE);

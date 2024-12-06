@@ -1,29 +1,7 @@
 package com.up.dt.mixin;
 
-import com.mojang.serialization.Dynamic;
-import com.mojang.serialization.Lifecycle;
-import com.up.dt.dimension.RealityCoordinate;
-import com.up.dt.dimension.RealityManager;
-import com.up.dt.dimension.RealityResourceUtil;
-import net.minecraft.core.*;
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.WorldDataConfiguration;
-import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
-import org.spongepowered.asm.mixin.injection.struct.InjectorGroupInfo;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Although unsused, leaving for reference since it was an effective way to patch a registry on world load. Currently removed from .mixins.json
